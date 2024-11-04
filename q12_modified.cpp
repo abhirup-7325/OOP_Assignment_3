@@ -1,14 +1,10 @@
 #include <iostream>
-#include <unordered_map>
-#include <set>
+#include <map>
 #include <string>
 
-enum Status {
-    pending,
-    successful,
-    failed
-};
-
+const int pending = 0;
+const int successful = 1;
+const int failed = 2;
 
 class Item {
 public:
@@ -46,13 +42,11 @@ private:
     int _quantity;
 };
 
-
 class Transaction {
 public:
     virtual void performTransaction() = 0;
-    virtual ~Transaction() = default;
+    virtual ~Transaction() {}
 };
-
 
 class Issue : public Transaction {
 public:
@@ -60,55 +54,53 @@ public:
         if (item && item->getQuantity() >= delta) {
             return new Issue(item, delta);
         } else {
-            return nullptr;
+            return NULL;
         }
     }
 
-    void performTransaction() override {
-        if (_status != Status::pending) {
+    void performTransaction() {
+        if (_status != pending) {
             return;
         }
 
         if (_item->getQuantity() < _delta) {
-            _status = Status::failed;
+            _status = failed;
         } else {
             _item->setQuantity(_item->getQuantity() - _delta);
-            _status = Status::successful;
+            _status = successful;
         }
     }
 
 private:
-    Issue(Item* item, int delta) : _item(item), _delta(delta), _status(Status::pending) {}
+    Issue(Item* item, int delta) : _item(item), _delta(delta), _status(pending) {}
 
     Item* _item;
     int _delta;
-    Status _status;
+    int _status;
 };
-
 
 class Receipt : public Transaction {
 public:
     static Receipt* createReceipt(Item* item, int delta) {
-        return item ? new Receipt(item, delta) : nullptr;
+        return item ? new Receipt(item, delta) : NULL;
     }
 
-    void performTransaction() override {
-        if (_status != Status::pending) {
+    void performTransaction() {
+        if (_status != pending) {
             return;
         }
 
         _item->setQuantity(_item->getQuantity() + _delta);
-        _status = Status::successful;
+        _status = successful;
     }
 
 private:
-    Receipt(Item* item, int delta) : _item(item), _delta(delta), _status(Status::pending) {}
+    Receipt(Item* item, int delta) : _item(item), _delta(delta), _status(pending) {}
 
     Item* _item;
     int _delta;
-    Status _status;
+    int _status;
 };
-
 
 class ItemFactorySingleton {
 public:
@@ -119,7 +111,7 @@ public:
 
     Item* createItem(int itemCode, const std::string& name, int rate, int quantity) {
         if (isItemPresent(itemCode)) {
-            return nullptr;
+            return NULL;
         }
 
         Item* newItem = new Item(itemCode, name, rate, quantity);
@@ -132,7 +124,7 @@ public:
     }
 
     Item* getItem(int itemCode) {
-        return isItemPresent(itemCode) ? items[itemCode] : nullptr;
+        return isItemPresent(itemCode) ? items[itemCode] : NULL;
     }
 
     int getPrice(int itemCode) const {
@@ -144,10 +136,11 @@ public:
     }
 
 private:
-    ItemFactorySingleton() = default;
-    std::unordered_map<int, Item*> items;
+    ItemFactorySingleton() {};
+    ItemFactorySingleton(const ItemFactorySingleton&);
+    ItemFactorySingleton& operator=(const ItemFactorySingleton&);
+    std::map<int, Item*> items;
 };
-
 
 int main() {
     ItemFactorySingleton* factory = ItemFactorySingleton::getInstance();
@@ -173,6 +166,9 @@ int main() {
 
     std::cout << "Laptop Quantity: " << factory->getQuantity(101) << "\n";
     std::cout << "Phone Quantity: " << factory->getQuantity(102) << "\n";
+
+    delete item1;
+    delete item2;
 
     return 0;
 }
