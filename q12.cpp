@@ -1,28 +1,31 @@
+/*
+Design the class(es) for the following scenario:
+ An item list contains item code, name, rate, and quantity for several
+items.
+ Whenever a new item is added in the list uniqueness of item code is to be
+checked.
+ Time to time rate of the items may change.
+ Whenever an item is issued or received existence of the item is checked
+and quantity is updated.
+ In case of issue, availability of quantity is also to be checked.
+ User may also like to know price/quantity available for an item.
+*/
+
+
 #include <iostream>
-#include <unordered_map>
-#include <set>
+#include <map>
 #include <string>
 
-enum Status {
-    pending,
-    successful,
-    failed
-};
+const int pending = 0;
+const int successful = 1;
+const int failed = 2;
 
+class Item;
+class Issue;
+class Receipt;
 
 class Item {
 public:
-    Item(int itemCode, const std::string& name, int rate, int quantity)
-        : _itemCode(itemCode), _name(name), _rate(rate), _quantity(quantity) {}
-
-    void setQuantity(int newQuantity) {
-        _quantity = newQuantity;
-    }
-
-    void setRate(int newRate) {
-        _rate = newRate;
-    }
-
     int getRate() const {
         return _rate;
     }
@@ -40,19 +43,28 @@ public:
     }
 
 private:
+    Item(int itemCode, const std::string& name, int rate, int quantity)
+        : _itemCode(itemCode), _name(name), _rate(rate), _quantity(quantity) {}
+
+    void setQuantity(int newQuantity) {
+        _quantity = newQuantity;
+    }
+
     int _itemCode;
     std::string _name;
     int _rate;
     int _quantity;
-};
 
+    friend class ItemFactorySingleton;
+    friend class Issue;
+    friend class Receipt;
+};
 
 class Transaction {
 public:
     virtual void performTransaction() = 0;
-    virtual ~Transaction() = default;
+    virtual ~Transaction() {}
 };
-
 
 class Issue : public Transaction {
 public:
@@ -64,27 +76,26 @@ public:
         }
     }
 
-    void performTransaction() override {
-        if (_status != Status::pending) {
+    void performTransaction() {
+        if (_status != pending) {
             return;
         }
 
         if (_item->getQuantity() < _delta) {
-            _status = Status::failed;
+            _status = failed;
         } else {
             _item->setQuantity(_item->getQuantity() - _delta);
-            _status = Status::successful;
+            _status = successful;
         }
     }
 
 private:
-    Issue(Item* item, int delta) : _item(item), _delta(delta), _status(Status::pending) {}
+    Issue(Item* item, int delta) : _item(item), _delta(delta), _status(pending) {}
 
     Item* _item;
     int _delta;
-    Status _status;
+    int _status;
 };
-
 
 class Receipt : public Transaction {
 public:
@@ -92,29 +103,31 @@ public:
         return item ? new Receipt(item, delta) : nullptr;
     }
 
-    void performTransaction() override {
-        if (_status != Status::pending) {
+    void performTransaction() {
+        if (_status != pending) {
             return;
         }
 
         _item->setQuantity(_item->getQuantity() + _delta);
-        _status = Status::successful;
+        _status = successful;
     }
 
 private:
-    Receipt(Item* item, int delta) : _item(item), _delta(delta), _status(Status::pending) {}
+    Receipt(Item* item, int delta) : _item(item), _delta(delta), _status(pending) {}
 
     Item* _item;
     int _delta;
-    Status _status;
+    int _status;
 };
-
 
 class ItemFactorySingleton {
 public:
     static ItemFactorySingleton* getInstance() {
-        static ItemFactorySingleton instance;
-        return &instance;
+        if (_instance == nullptr) {
+            _instance = new ItemFactorySingleton();
+        }
+
+        return _instance;
     }
 
     Item* createItem(int itemCode, const std::string& name, int rate, int quantity) {
@@ -144,35 +157,18 @@ public:
     }
 
 private:
-    ItemFactorySingleton() = default;
-    std::unordered_map<int, Item*> items;
+    ItemFactorySingleton() {}
+    ItemFactorySingleton(const ItemFactorySingleton&) = delete;
+    ItemFactorySingleton& operator=(const ItemFactorySingleton&) = delete;
+
+    static ItemFactorySingleton *_instance;
+    std::map<int, Item*> items;
 };
 
+ItemFactorySingleton* ItemFactorySingleton::_instance = nullptr;
 
 int main() {
-    ItemFactorySingleton* factory = ItemFactorySingleton::getInstance();
-
-    Item* item1 = factory->createItem(101, "Laptop", 1000, 10);
-    Item* item2 = factory->createItem(102, "Phone", 500, 20);
-
-    if (item1) {
-        Issue* issue1 = Issue::createIssue(item1, 5);
-        if (issue1) {
-            issue1->performTransaction();
-            delete issue1;
-        }
-    }
-
-    if (item2) {
-        Receipt* receipt1 = Receipt::createReceipt(item2, 10);
-        if (receipt1) {
-            receipt1->performTransaction();
-            delete receipt1;
-        }
-    }
-
-    std::cout << "Laptop Quantity: " << factory->getQuantity(101) << "\n";
-    std::cout << "Phone Quantity: " << factory->getQuantity(102) << "\n";
+    
 
     return 0;
 }

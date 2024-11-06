@@ -1,8 +1,17 @@
+/*
+Design a BALANCE class with account number, balance and date of last update.
+Consider a TRANSACTION class with account number, date of transaction,
+amount and transaction type (W for withdrawal and D for deposit). If it is
+withdrawal then check whether the amount is available or not. Transaction object
+will make necessary update in the BALANCE class.
+*/
+
 #include <iostream>
 #include <vector>
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <memory>
 
 const int STATUS_PENDING = 0;
 const int STATUS_SUCCESSFUL = 1;
@@ -15,12 +24,6 @@ class Transaction;
 
 class Balance {
 public:
-    Balance(int accountNumber, int initialBalance, std::string dateOfLastUpdate) {
-        _accountNumber = accountNumber;
-        _balance = initialBalance;
-        _dateOfLastUpdate = dateOfLastUpdate;
-    }
-
     int getBalance() const {
         return _balance;
     }
@@ -29,12 +32,8 @@ public:
         return _dateOfLastUpdate;
     }
 
-    bool isWithdrawalPossible(int withdrawalAmount) {
+    bool isWithdrawalPossible(int withdrawalAmount) const {
         return (withdrawalAmount <= _balance);
-    }
-
-    void updateBalance(int delta) {
-        _balance += delta;
     }
 
     void pushTransaction(Transaction* transaction) {
@@ -42,19 +41,26 @@ public:
     }
 
 private:
+    Balance(int accountNumber, int initialBalance, const std::string& dateOfLastUpdate) 
+        : _accountNumber(accountNumber), _balance(initialBalance), _dateOfLastUpdate(dateOfLastUpdate) {}
+
     int _accountNumber;
     int _balance;
     std::string _dateOfLastUpdate;
     std::vector<Transaction *> TransactionLog;
+
+    void updateBalance(int delta) {
+        _balance += delta;
+    }
+
+    friend class AccountFactorySingleton;
+    friend class Transaction;
 };
 
 class Transaction {
 public:
-    Transaction(Balance* balance, int amount, std::string dateOfTransaction, char transactionType) {
-        _balance = balance;
-        _amount = amount;
-        _dateOfTransaction = dateOfTransaction;
-        _status = STATUS_PENDING;
+    Transaction(Balance* balance, int amount, const std::string& dateOfTransaction, char transactionType) 
+        : _balance(balance), _amount(amount), _dateOfTransaction(dateOfTransaction), _status(STATUS_PENDING) {
 
         if (transactionType == 'W') {
             _transactionType = TRANSACTION_WITHDRAWAL;
@@ -67,9 +73,9 @@ public:
 
     void performTransaction() {
         if (_transactionType == TRANSACTION_DEPOSIT) {
-            performDeposit();
+            _performDeposit();
         } else {
-            performWithdrawal();
+            _performWithdrawal();
         }
 
         if (_status == STATUS_SUCCESSFUL) {
@@ -84,12 +90,12 @@ private:
     int _status;
     int _transactionType;
 
-    void performDeposit() {
+    void _performDeposit() {
         _balance->updateBalance(_amount);
         _status = STATUS_SUCCESSFUL;
     }
 
-    void performWithdrawal() {
+    void _performWithdrawal() {
         if (_balance->isWithdrawalPossible(_amount)) {
             _balance->updateBalance(-_amount);
             _status = STATUS_SUCCESSFUL;
@@ -102,13 +108,13 @@ private:
 class AccountFactorySingleton {
 public:
     static AccountFactorySingleton* getInstance() {
-        if (_accountFactory == NULL) {
+        if (_accountFactory == nullptr) {
             _accountFactory = new AccountFactorySingleton();
         }
         return _accountFactory;
     }
 
-    bool isAccountNumberUnique(int accountNumber) {
+    bool isAccountNumberUnique(int accountNumber) const {
         return (_accountNumberSet.find(accountNumber) == _accountNumberSet.end());
     }
 
@@ -117,46 +123,24 @@ public:
             _accountNumberSet.insert(accountNumber);
             return new Balance(accountNumber, initialBalance, "N/A");
         } else {
-            return NULL;
+            return nullptr;
         }
     }
 
 private:
     AccountFactorySingleton() {}
 
-    AccountFactorySingleton(const AccountFactorySingleton&);
-    AccountFactorySingleton& operator=(const AccountFactorySingleton&);
+    AccountFactorySingleton(const AccountFactorySingleton&) = delete;
+    AccountFactorySingleton& operator=(const AccountFactorySingleton&) = delete;
 
     static AccountFactorySingleton* _accountFactory;
     std::set<int> _accountNumberSet;
 };
 
-AccountFactorySingleton* AccountFactorySingleton::_accountFactory = NULL;
+AccountFactorySingleton* AccountFactorySingleton::_accountFactory = nullptr;
 
 int main() {
-    AccountFactorySingleton* factory = AccountFactorySingleton::getInstance();
-
-    Balance* balance1 = factory->createBalance(12345, 1000);
-
-    if (balance1) {
-        std::cout << "Account created with balance: " << balance1->getBalance() << std::endl;
-
-        Transaction deposit(balance1, 200, "2024-10-30", 'D');
-        deposit.performTransaction();
-        std::cout << "Updated balance after deposit: " << balance1->getBalance() << std::endl;
-
-        Transaction withdrawal(balance1, 300, "2024-10-30", 'W');
-        withdrawal.performTransaction();
-        std::cout << "Updated balance after withdrawal: " << balance1->getBalance() << std::endl;
-
-        Transaction withdrawalFail(balance1, 1000, "2024-10-30", 'W');
-        withdrawalFail.performTransaction();
-        std::cout << "Final balance: " << balance1->getBalance() << std::endl;
-    } else {
-        std::cerr << "Failed to create account. Account number already exists." << std::endl;
-    }
-
-    delete balance1;
-
+    
+    
     return 0;
 }
